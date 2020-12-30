@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Custom
+django_plotly/graph/migrations
+django_plotly/media/uploads

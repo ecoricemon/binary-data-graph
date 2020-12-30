@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <link rel="stylesheet" type="text/css" href="{% static 'graph/style.css' %}">
+        <meta charset="utf-8">
+        <title>BinGraph: Structure</title>
+    </head>
+    <body>
+        <h1 class="title">Structure List</h1>
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="button" class="btn" value="HOME" onClick="location.href='/'">
+            <input type="submit" class="btn" name="submit_del" value="DEL">
+            <input type="submit" class="btn" name="submit_new" value="NEW">
+            {{ bs_fs.management_form }}
+            <table>
+                <th class="col_name">Structure name</th>
+                <th class="col_name">Modified</th>
+                <th class="col_name">Del</th>
+                {% for form in bs_fs %}
+                    <span class="no_display">
+                        <!-- Add hidden non-blank fields for validation -->
+                        {{ form.id }}
+                        {{ form.label }}
+                    </span>
+                    <tr>
+                        <td>
+                            <a href="{{ form.id.value }}/">{{ form.label.value }}</a>
+                        </td>
+                        <td>{{ form.modified.value|date:"Y-m-d H:i:s" }}</td>
+                        <td align="center">{{ form.DELETE }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </form>
+    </body>
+</html>

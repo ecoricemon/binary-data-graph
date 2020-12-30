@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <link rel="stylesheet" type="text/css" href="{% static 'graph/style.css' %}">
+        <meta charset="utf-8">
+        <title>BinGraph: Graph</title>
+    </head>
+    <body>
+        <h1 class="title">Graph</h1>
+        <form action="" method="post">
+            {% csrf_token %}
+            <input type="button" class="btn" value="HOME" onClick="location.href='/'">
+            <input type="submit" class="btn" name="submit_plot" value="PLOT">
+            <table>
+                <tr>
+                    <td class="ctrl_panel" valign="top">
+                        <h2 class="sub_title">Primary Options</h2>
+                        <label for="{{ sel_bd.bd.auto_id }}">Select Data</label>
+                        <br>
+                        {{ sel_bd.bd }}
+                        <br><br>
+                        <label for="{{ sel_bs.bs.auto_id }}">Select Structure</label>
+                        <br>
+                        {{ sel_bs.bs }}
+                        <br><br>
+                        <label for="{{ sel_graph.graph.auto_id }}">Select Graph</label>
+                        <br>
+                        {{ sel_graph.graph }}
+                        <br><br>
+                        <label>Select Fields
+                            <br>
+                            {% for form in sel_bf_forms %}
+                                {{ form.bf }}
+                            {% endfor %}
+                        </label>
+                        <h2 class="sub_title">Drawing Options</h2>
+                        <label>Select Width x Height
+                            <br>
+                            {{ graph_opt.width }}
+                            <span>x</span>
+                            {{ graph_opt.height }}
+                        </label>
+                        <br><br>
+                    </td>
+                    <td>
+                        {% if plot_div %}
+                            {{ plot_div|safe }}
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </body>
+</html>
