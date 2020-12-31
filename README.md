@@ -1,6 +1,6 @@
 # Binary Data Graph
-This is a web application to draw graph of binary data.   
-<img width="300" src="https://user-images.githubusercontent.com/74242663/103348615-e3805b80-4add-11eb-946c-93c60f4a9b0e.png">
+This is a web application to draw graph of binary data(Little endian only).   
+<img width="300" src="https://user-images.githubusercontent.com/74242663/103409122-a208b280-4ba8-11eb-9a5e-74469472b2eb.PNG">
 
 ## Prerequisites
 This application requires python and some python packages.   
@@ -41,6 +41,10 @@ Change 'django_plotly/django_plotly/settings.py'.
 
 Then, run this application.   
 * `django_plotly> python manage.py runserver 192.168.0.50:8000`   
+
+## Sample
+'sample.bin' was made by 'sample/makebin.cpp'.   
+Its structure is described in 'sample/makebin.cpp'.   
 
 ## Test environment
 * Windows 10 64bit
