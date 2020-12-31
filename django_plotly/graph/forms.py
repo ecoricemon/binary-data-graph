@@ -1,6 +1,7 @@
 import os
 from django import forms
 from django.conf import settings
+from .bin2real import *
 from .models import *
 
 class BinStructForm(forms.ModelForm):
@@ -31,6 +32,8 @@ class BinFieldForm(forms.ModelForm):
         if bf is not None: # UPDATE
             bf.label = self.cleaned_data['label']
             bf.bits = self.cleaned_data['bits']
+            bf.tf_coef0 = self.cleaned_data['tf_coef0']
+            bf.tf_coef1 = self.cleaned_data['tf_coef1']
             if commit:
                 bf.save()
             obj = bf
@@ -49,7 +52,7 @@ class FileForm(forms.Form):
             files = self.files.getlist('uploads')
             for f in files:
                 if f.size == 0:
-                    raise ValidationError('AAA The submitted file is empty.')
+                    raise ValidationError('The submitted file is empty.')
 
 class SelectBinDataForm(forms.Form):
     bd = forms.ModelChoiceField(queryset=BinData.objects.all(), label='Data',
@@ -83,9 +86,9 @@ class SelectGraphForm(forms.Form):
         return graph_id[1]
 
 class SelectBinFieldForm(forms.Form):
-    def __init__(self, choices, label, *args, **kwargs):
+    def __init__(self, choices, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['bf'] = forms.ChoiceField(choices=choices, label=label,
+        self.fields['bf'] = forms.ChoiceField(choices=choices, 
             widget=forms.Select(attrs={'class': 'small_sel'}))
 
 class GraphOption(forms.Form):
@@ -123,10 +126,7 @@ def get_binfield_formset(srctype='', src=None):
             bf_fs.full_clean()
         values = []
         for form in bf_fs:
-            label = form.cleaned_data.get('label', '') # Permit empty label 
-            bits = form.cleaned_data.get('bits')
-            id = form.cleaned_data.get('id')
-            values.append({'label': label, 'bits': bits, 'id': id})
+            values.append(_get_binfield_value_from_form(form))
         initial = values
         extra = len(values) + 1
     elif srctype == 'formset_delete': # Get formset after deleting a form
@@ -136,10 +136,7 @@ def get_binfield_formset(srctype='', src=None):
         values = []
         for form in bf_fs:
             if 'delete' not in form.changed_data:
-                label = form.cleaned_data.get('label', '') # Permit empty label 
-                bits = form.cleaned_data.get('bits')
-                id = form.cleaned_data.get('id')
-                values.append({'label': label, 'bits': bits, 'id': id})
+                values.append(_get_binfield_value_from_form(form))
         initial = values
         extra = len(values)
     else: # Get formset with an empty form
@@ -150,18 +147,46 @@ def get_binfield_formset(srctype='', src=None):
         exclude=[], extra=extra)
     return FormSetClass(data=data, queryset=queryset, initial=initial)
 
+def _get_binfield_value_from_form(form):
+    id = form.cleaned_data.get('id')
+    label = form.cleaned_data.get('label', BinField._meta.get_field('label').default)
+    bits = form.cleaned_data.get('bits', BinField._meta.get_field('bits').default)
+    tf_coef0 = form.cleaned_data.get('tf_coef0', BinField._meta.get_field('tf_coef0').default)
+    tf_coef1 = form.cleaned_data.get('tf_coef1', BinField._meta.get_field('tf_coef1').default)
+    return {
+        'id': id,
+        'label': label,
+        'bits': bits,
+        'tf_coef0': tf_coef0,
+        'tf_coef1': tf_coef1}
+
 def get_binfield_label(bf_id):
     label = None
-    bf = BinField.objects.get(id=bf_id)
-    if bf:
-        label = bf.label
+    if bf_id == BinField.INDEX_LABEL:
+        label = BinField.INDEX_LABEL
+    else:
+        bf = BinField.objects.get(id=bf_id)
+        if bf:
+            label = bf.label
     return label
 
 def save_binstruct_binfield_formset(bs_form, bs_id, bf_fs):
-    valid = False
-    if bs_form.is_valid() and bf_fs.is_valid():
-        valid = True
+    err_msgs = []
 
+    # Add error messages if form is invalid
+    if not bs_form.is_valid():
+        err_msgs.extend(_get_err_msgs_from_form(bs_form))
+    if not bf_fs.is_valid():
+        for form in bf_fs:
+            err_msgs.extend(_get_err_msgs_from_form(form))
+    makable, err_msg = CustomBinStruct.check_makable(
+        sum([form.cleaned_data.get('bits', 0) for form in bf_fs]))
+    if not makable:
+        err_msgs.append(err_msg)
+
+    # Save if all forms are valid
+    if len(err_msgs) == 0:
+        
         # Save BinStruct and BinField
         bs = bs_form.save(bs_id=bs_id)
         bf_ids = []
@@ -174,7 +199,8 @@ def save_binstruct_binfield_formset(bs_form, bs_id, bf_fs):
         del_bfs = BinField.objects.filter(bs__id=bs_id).exclude(pk__in=bf_ids)
         for bf in del_bfs:
             bf.delete()
-    return valid
+        valid = True
+    return err_msgs
 
 def delete_binstruct_formset(bs_fs):
     if not hasattr(bs_fs, 'cleaned_data'):
@@ -205,7 +231,12 @@ def save_fileform(form):
             bd = BinData(file=f, fname=f.name)
             bd.save()
     else:
-        for ves in form.errors.as_data().values():
+        err_msgs = _get_err_msgs_from_form(form)
+    return err_msgs
+
+def _get_err_msgs_from_form(form):
+    err_msgs = []
+    for ves in form.errors.as_data().values():
             for ve in ves:
                 for msg in ve.messages:
                     err_msgs.append(msg)
@@ -224,13 +255,13 @@ def get_bindata_path(bd):
 
 def get_select_binfield_forms(bs, num, initials):
     forms = []
-    choices = []
+    choices = [(BinField.INDEX_LABEL, BinField.INDEX_LABEL)]
     bf_ids = []
     for bf in BinField.objects.filter(bs=bs):
         choices.append((bf.id, bf.label))
     for i in range(num):
-        sel_bf = SelectBinFieldForm(choices, 'Field')
-        if len(initials) is num:
+        sel_bf = SelectBinFieldForm(choices)
+        if len(initials) == num:
             sel_bf.fields['bf'].initial = initials[i]
             bf_ids.append(sel_bf.fields['bf'].initial)
         forms.append(sel_bf)

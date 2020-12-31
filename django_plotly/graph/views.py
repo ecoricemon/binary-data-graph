@@ -67,11 +67,11 @@ def _delete_binfield_form(request):
 def _save_binfield_formset(request, bs_id):
     bs_form = BinStructForm(request.POST)
     bf_fs = get_binfield_formset('post', request.POST)
-    saved = save_binstruct_binfield_formset(bs_form, bs_id, bf_fs)
-    if saved:
+    err_msgs = save_binstruct_binfield_formset(bs_form, bs_id, bf_fs)
+    if len(err_msgs) == 0:
         response = redirect('binstruct_list')
     else:
-        response = response = render(request, 'graph/error.html', {'msgs': ['Failed to save.']})
+        response = response = render(request, 'graph/error.html', {'msgs': err_msgs})
     return response
 
 def bindata_list(request):
@@ -162,7 +162,16 @@ def get_plotly_html(bs, graph_id_str, bf_ids, fpath, graph_opt):
     cbs.make_binstruct()
 
     # Read the selected file
-    data = cbs.read_bin_to_dict(fpath)
+    data_org = cbs.read_bin_to_list(fpath)
+
+    # Transform data as its coefficients
+    data_tf = list(map(
+        lambda vals: tuple(bfs[i].tf_coef0 + bfs[i].tf_coef1 * x for i, x in enumerate(vals)),
+        data_org))
+    data = cbs.list_to_dict(data_tf)
+
+    # Add index column
+    data[BinField.INDEX_LABEL] = list(range(1, len(data_tf) + 1))
     df = pd.DataFrame.from_dict(data)
 
     # Get field fields from the bf_ids

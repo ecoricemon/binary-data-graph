@@ -10,19 +10,17 @@ class CustomBinStruct:
     <C/C++ example code>
     #pragma pack(push, 1)
     typedef struct {
-        unsigned int use22bits : 22;
-        unsigned int use10bits : 10;
-        unsigned short : 7;
-        unsigned short use2bits : 2;
-        unsigned short : 4;
-        unsigned short use3bits : 3;
+        unsigned long long time : 27;
+        unsigned long long line : 9;
+        unsigned long long sine : 13;
+        unsigned long long cosine : 15;
     } BinStructure;
     #pragma pack(pop)
 
     <Data structure made by example code>
-    |LSB                                                 MSB|
-    |0      21|22     31|32    38|39    40|41    44|45    47|
-    |use22bits|use10bits|not used|use2bits|not used|use3bits|
+    |LSB                             MSB|
+    |0     26|27    35|36    48|49    63|
+    |  time  |  line  |  sine  | cosine |
     """
 
     def __init__(self):
@@ -32,6 +30,15 @@ class CustomBinStruct:
     def clear_binfield(self):
         self._fields.clear()
         self._fields_buf.clear()
+
+    @classmethod
+    def check_makable(cls, sob):
+        makable = True
+        err_msg = ''
+        if sob <= 0 or sob % 8 != 0:
+            makable = False
+            err_msg = "Sum of bits must be one of 8's multiples"
+        return makable, err_msg
 
     def append_binfield(self, label, bits):
         self._fields_buf.append((label, bits))
@@ -77,25 +84,16 @@ class CustomBinStruct:
             res.append(tuple_of_fields)
         return res
 
+    def list_to_dict(self, l):
+        d = {}
+        for field in self._fields:
+            d[field[0]] = []
+
+        for li in l:
+            for idx, field in enumerate(self._fields):
+                d[field[0]].append(li[idx])
+
+        return d
+
     def read_bin_to_dict(self, fpath):
-
-        # Open file
-        f = open(fpath, 'rb')
-        buf = f.read()
-        f.close()
-
-        # Prepare return dictionary(key: field label, value: value list)
-        res = {}
-        for field in self._ctype._fields_:
-            res[field[0]] = []
-
-        # Set value list
-        count = int(len(buf) / self._unit_size)
-        for i in range(0, count):
-            str_buf = create_string_buffer(
-                        buf[i * self._unit_size : i * self._unit_size + self._unit_size])
-            st = cast(pointer(str_buf), POINTER(self._ctype)).contents
-            for field in st._fields_:
-                res[field[0]].append(getattr(st, field[0]))
-
-        return res
+        return self.list_to_dict(self.read_bin_to_list(fpath))

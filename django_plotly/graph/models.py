@@ -21,14 +21,20 @@ class BinStruct(models.Model):
         return super().save(*args, **kwargs)
 
 class BinField(models.Model):
+    INDEX_LABEL = 'index'
     bs = models.ForeignKey(BinStruct, on_delete=models.CASCADE, blank=True)
-    label = models.CharField(max_length=256, blank=True)
-    bits = models.IntegerField(blank=True)
+    label = models.CharField(max_length=256, blank=True, default='')
+    bits = models.IntegerField(blank=True, default=1)
+    tf_coef0 = models.FloatField(blank=True, default=0.0)
+    tf_coef1 = models.FloatField(blank=True, default=1.0)
 
     def __str__(self):
         return str(self.id) + ':' + self.bs.label + '.' + self.label + '(' + str(self.bits) + ')'
 
     def clean(self):
+        super().clean()
+        if self.label == self.INDEX_LABEL:
+            raise ValidationError("Label '" + self.label + "' can NOT be used.")
         if (self.bits is None) or (self.bits < 1) or (64 < self.bits):
             raise ValidationError('bits must be in 1 to 64')
 
