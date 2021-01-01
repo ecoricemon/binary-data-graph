@@ -11,4 +11,11 @@ urlpatterns = [
     re_path(r'^{root}(?P<y>[0-9]{{4}})/(?P<m>[0-9]{{2}})/(?P<d>[0-9]{{2}})/(?P<n>.+)'.format(root=settings.UPLOAD_ROOT),
         views.bindata_download, name='bindata_download'),
     path('plot/', views.plot, name='plot'),
+    
+]
+
+# Insecure but, force --insecure option to support CSS without another server
+from django.contrib.staticfiles.views import serve
+urlpatterns += [
+    re_path(r'^{root}(?P<path>.*)$'.format(root=settings.STATIC_URL_WO), serve, kwargs={'insecure': True}),
 ]
